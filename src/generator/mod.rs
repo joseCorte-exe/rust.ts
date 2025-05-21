@@ -1,0 +1,112 @@
+use crate::ast::{Expression, Statement, Type};
+use std::fs;
+use std::path::Path;
+
+pub struct CodeGenerator {
+    output_dir: String,
+}
+
+impl CodeGenerator {
+    pub fn new(output_dir: &str) -> Self {
+        CodeGenerator {
+            output_dir: output_dir.to_string(),
+        }
+    }
+
+    pub fn generate(&self, statements: Vec<Statement>) -> Result<(), std::io::Error> {
+        // Cria o diretório de saída se não existir
+        fs::create_dir_all(&self.output_dir)?;
+
+        // Cria o Cargo.toml
+        let cargo_toml = r#"[package]
+name = "generated-code"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+"#;
+        fs::write(Path::new(&self.output_dir).join("Cargo.toml"), cargo_toml)?;
+
+        let mut code = String::new();
+        code.push_str("fn main() {\n");
+
+        for stmt in statements {
+            code.push_str(&self.generate_statement(&stmt));
+        }
+
+        code.push_str("}\n");
+
+        // Escreve o código no arquivo
+        let output_path = Path::new(&self.output_dir).join("src/main.rs");
+        fs::create_dir_all(Path::new(&self.output_dir).join("src"))?;
+        fs::write(output_path, code)?;
+
+        Ok(())
+    }
+
+    fn generate_statement(&self, stmt: &Statement) -> String {
+        match stmt {
+            Statement::ConsoleLog(expr) => {
+                format!(
+                    "    println!(\"{{:?}}\", {});\n",
+                    self.generate_expression(expr)
+                )
+            }
+            Statement::VariableDeclaration {
+                name,
+                type_annotation,
+                value,
+            } => {
+                let type_str = match type_annotation {
+                    Type::String => "String",
+                    Type::Number => "i32",
+                    Type::Boolean => "bool",
+                };
+
+                let value_str = if let Some(expr) = value {
+                    format!(" = {}", self.generate_expression(expr))
+                } else {
+                    String::new()
+                };
+
+                format!("    let {}: {}{};\n", name, type_str, value_str)
+            }
+            Statement::IfStatement {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let mut code = format!("    if {} {{\n", self.generate_expression(condition));
+
+                for stmt in then_branch {
+                    code.push_str(&self.generate_statement(stmt));
+                }
+
+                code.push_str("    }");
+
+                if let Some(else_statements) = else_branch {
+                    code.push_str(" else {\n");
+                    for stmt in else_statements {
+                        code.push_str(&self.generate_statement(stmt));
+                    }
+                    code.push_str("    }");
+                }
+
+                code.push_str("\n");
+                code
+            }
+        }
+    }
+
+    fn generate_expression(&self, expr: &Expression) -> String {
+        match expr {
+            Expression::StringLiteral(s) => {
+                // Remove as aspas externas e escapa as aspas internas
+                let s = s.trim_matches('"');
+                format!("String::from(\"{}\")", s.replace('"', "\\\""))
+            }
+            Expression::NumberLiteral(n) => n.to_string(),
+            Expression::Identifier(name) => name.clone(),
+        }
+    }
+}

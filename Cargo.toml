@@ -1,0 +1,8 @@
+[package]
+name = "js-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+logos = "0.14.0"  # Para análise léxica
+thiserror = "1.0" # Para tratamento de erros
