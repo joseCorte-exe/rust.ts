@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Statement, Type};
+use crate::ast::{BinaryOperator, Expression, Statement, Type};
 use crate::lexer::Token;
 use logos::Span;
 
@@ -27,9 +27,46 @@ impl Parser {
             Token::ConsoleLog => self.parse_console_log(),
             Token::Let | Token::Const => self.parse_variable_declaration(),
             Token::If => self.parse_if_statement(),
-            _ => None,
+            Token::While => self.parse_while_statement(),
+            Token::Identifier(_) => {
+                if self.lookahead_is(Token::Equal) {
+                    self.parse_assignment()
+                } else {
+                    // Se não for atribuição, evite loop consumindo o token (ex: expressão ou erro)
+                    self.advance();
+                    None
+                }
+            }
+            _ => {
+                // Avança para evitar loop infinito
+                self.advance();
+                None
+            }
         }
     }
+
+
+    fn parse_assignment_expression(&mut self) -> Option<Expression> {
+        let expr = self.parse_binary_expression()?;
+
+        if self.lookahead_is(Token::Equal) {
+            if let Expression::Identifier(name) = expr {
+                self.advance(); // consome '='
+                let value = self.parse_assignment_expression()?; // Recursivo p/ associatividade direita
+                return Some(Expression::Assignment {
+                    name,
+                    value: Box::new(value),
+                });
+            } else {
+                eprintln!("Erro: lado esquerdo da atribuição não é um identificador.");
+                return None;
+            }
+        }
+
+        Some(expr)
+    }
+
+
 
     fn parse_console_log(&mut self) -> Option<Statement> {
         self.advance(); // Consume 'console.log'
@@ -41,8 +78,8 @@ impl Parser {
     }
 
     fn parse_variable_declaration(&mut self) -> Option<Statement> {
-        let is_const = matches!(self.advance(), Token::Const);
-        let name = if let Token::Identifier(name) = self.advance().clone() {
+        let _is_const = matches!(self.advance(), Token::Const); // ou Let
+        let name = if let Token::Identifier(name) = self.advance() {
             name
         } else {
             return None;
@@ -51,12 +88,13 @@ impl Parser {
         self.expect(Token::Colon)?;
         let type_annotation = self.parse_type()?;
 
-        let value = if self.match_token(Token::Semicolon) {
-            None
-        } else {
+        let value = if self.match_token(Token::Equal) {
             let expr = self.parse_expression()?;
             self.expect(Token::Semicolon)?;
             Some(expr)
+        } else {
+            self.expect(Token::Semicolon)?; // termina com ;
+            None
         };
 
         Some(Statement::VariableDeclaration {
@@ -65,6 +103,7 @@ impl Parser {
             value,
         })
     }
+
 
     fn parse_if_statement(&mut self) -> Option<Statement> {
         self.advance(); // Consume 'if'
@@ -102,11 +141,100 @@ impl Parser {
         })
     }
 
+    fn parse_while_statement(&mut self) -> Option<Statement> {
+        self.advance(); // Consume 'while'
+        self.expect(Token::OpenParen)?;
+        let condition = self.parse_expression()?;
+        self.expect(Token::CloseParen)?;
+        self.expect(Token::OpenBrace)?;
+
+        let mut body = Vec::new();
+        while !self.check(Token::CloseBrace) && !self.is_at_end() {
+            if let Some(stmt) = self.parse_statement() {
+                body.push(stmt);
+            }
+        }
+        self.expect(Token::CloseBrace)?;
+
+        Some(Statement::WhileStatement { condition, body })
+    }
+
+    fn parse_assignment(&mut self) -> Option<Statement> {
+        // Consome o identificador
+        let name = if let Token::Identifier(name) = self.advance() {
+            name
+        } else {
+            return None;
+        };
+
+        // Consome o '='
+        self.expect(Token::Equal)?;
+
+        // Pega a expressão depois do '='
+        let value = self.parse_expression()?;
+
+        // Consome o ';'
+        self.expect(Token::Semicolon)?;
+
+        Some(Statement::Assignment { name, value })
+    }
+
+
     fn parse_expression(&mut self) -> Option<Expression> {
+        self.parse_assignment_expression()
+    }
+
+
+    fn parse_binary_expression(&mut self) -> Option<Expression> {
+        let mut left = self.parse_primary()?;
+
+        while let Some(op) = self.parse_binary_operator() {
+            let right = self.parse_primary()?;
+            left = Expression::BinaryOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Some(left)
+    }
+
+    fn parse_primary(&mut self) -> Option<Expression> {
         match self.advance() {
             Token::StringLiteral(s) => Some(Expression::StringLiteral(s)),
             Token::Number(n) => Some(Expression::NumberLiteral(n)),
             Token::Identifier(name) => Some(Expression::Identifier(name)),
+            _ => None,
+        }
+    }
+
+    fn parse_binary_operator(&mut self) -> Option<BinaryOperator> {
+        match self.peek() {
+            Token::Plus => {
+                self.advance();
+                Some(BinaryOperator::Add)
+            }
+            Token::Minus => {
+                self.advance();
+                Some(BinaryOperator::Subtract)
+            }
+            Token::Star => {
+                self.advance();
+                Some(BinaryOperator::Multiply)
+            }
+            Token::Slash => {
+                self.advance();
+                Some(BinaryOperator::Divide)
+            }
+            Token::LessThan => {
+                self.advance();
+                Some(BinaryOperator::LessThan)
+            }
+            Token::GreaterThan => {
+                self.advance();
+                Some(BinaryOperator::GreaterThan)
+            }
             _ => None,
         }
     }
@@ -131,11 +259,17 @@ impl Parser {
     }
 
     fn peek(&self) -> Token {
-        self.tokens[self.current].0.clone()
+        self.tokens
+            .get(self.current)
+            .map(|t| t.0.clone())
+            .unwrap_or(Token::Semicolon)
     }
 
     fn previous(&self) -> Token {
-        self.tokens[self.current - 1].0.clone()
+        self.tokens
+            .get(self.current.saturating_sub(1))
+            .map(|t| t.0.clone())
+            .unwrap_or(Token::Semicolon)
     }
 
     fn check(&self, token: Token) -> bool {
@@ -167,4 +301,14 @@ impl Parser {
     fn is_at_end(&self) -> bool {
         self.current >= self.tokens.len()
     }
+
+    fn lookahead_is(&self, expected: Token) -> bool {
+        if self.current + 1 >= self.tokens.len() {
+            return false;
+        }
+        std::mem::discriminant(&self.tokens[self.current + 1].0)
+            == std::mem::discriminant(&expected)
+    }
+
+
 }

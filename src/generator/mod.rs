@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Statement, Type};
+use crate::ast::{BinaryOperator, Expression, Statement, Type};
 use std::fs;
 use std::path::Path;
 
@@ -95,18 +95,46 @@ edition = "2021"
                 code.push_str("\n");
                 code
             }
+            Statement::WhileStatement { condition, body } => {
+                let mut code = format!("    while {} {{\n", self.generate_expression(condition));
+                for stmt in body {
+                    code.push_str(&self.generate_statement(stmt));
+                }
+                code.push_str("    }\n");
+                code
+            }
+            Statement::Assignment { name, value } => {
+                format!("    {} = {};\n", name, self.generate_expression(value))
+            }
         }
     }
 
     fn generate_expression(&self, expr: &Expression) -> String {
-        match expr {
-            Expression::StringLiteral(s) => {
-                // Remove as aspas externas e escapa as aspas internas
-                let s = s.trim_matches('"');
-                format!("String::from(\"{}\")", s.replace('"', "\\\""))
-            }
-            Expression::NumberLiteral(n) => n.to_string(),
-            Expression::Identifier(name) => name.clone(),
+    match expr {
+        Expression::StringLiteral(s) => {
+            let s = s.trim_matches('"');
+            format!("String::from(\"{}\")", s.replace('"', "\\\""))
+        }
+        Expression::NumberLiteral(n) => n.to_string(),
+        Expression::Identifier(name) => name.clone(),
+        // 👇 Adicione isso:
+        Expression::BinaryOp { left, op, right } => {
+            let left_code = self.generate_expression(left);
+            let right_code = self.generate_expression(right);
+            let op_code = match op {
+                BinaryOperator::Add => "+",
+                BinaryOperator::Subtract => "-",
+                BinaryOperator::Multiply => "*",
+                BinaryOperator::Divide => "/",
+                BinaryOperator::LessThan => "<",
+                BinaryOperator::GreaterThan => ">",
+            };
+            format!("({} {} {})", left_code, op_code, right_code)
+        }
+        Expression::Assignment { name, value } => {
+            format!("{} = {}", name, self.generate_expression(value))
         }
     }
+}
+
 }

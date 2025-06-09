@@ -1,5 +1,4 @@
-use logos::{Logos, Span};
-use std::num::ParseIntError;
+use logos::{Logos};
 
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
@@ -18,6 +17,12 @@ pub enum Token {
     #[token("const")]
     Const,
 
+    #[token("while")]
+    While,
+
+    #[token("=")]
+    Equal,
+
     #[token(":")]
     Colon,
 
@@ -35,6 +40,24 @@ pub enum Token {
 
     #[token("}")]
     CloseBrace,
+
+    #[token("<")]
+    LessThan,
+
+    #[token(">")]
+    GreaterThan,
+
+    #[token("+")]
+    Plus,
+
+    #[token("-")]
+    Minus,
+
+    #[token("*")]
+    Star,
+
+    #[token("/")]
+    Slash,
 
     #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#, |lex| lex.slice().to_string())]
     StringLiteral(String),

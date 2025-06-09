@@ -9,7 +9,7 @@ pub struct Lexer {
 
 impl Lexer {
     pub fn new(source: &str) -> Self {
-        let mut lexer = Token::lexer(source);
+        let lexer = Token::lexer(source);
         let tokens: Vec<(Token, Span)> = lexer
             .spanned()
             .filter_map(|(token, span)| match token {
