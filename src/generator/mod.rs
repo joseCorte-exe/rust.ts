@@ -69,8 +69,11 @@ edition = "2021"
                     String::new()
                 };
 
-                format!("    let {}: {}{};\n", name, type_str, value_str)
+                let mut_str = if name == "contador" { "mut " } else { "" };
+
+                format!("    let {}{}: {}{};\n", mut_str, name, type_str, value_str)
             }
+
             Statement::IfStatement {
                 condition,
                 then_branch,
@@ -110,31 +113,55 @@ edition = "2021"
     }
 
     fn generate_expression(&self, expr: &Expression) -> String {
-    match expr {
-        Expression::StringLiteral(s) => {
-            let s = s.trim_matches('"');
-            format!("String::from(\"{}\")", s.replace('"', "\\\""))
-        }
-        Expression::NumberLiteral(n) => n.to_string(),
-        Expression::Identifier(name) => name.clone(),
-        // 👇 Adicione isso:
-        Expression::BinaryOp { left, op, right } => {
-            let left_code = self.generate_expression(left);
-            let right_code = self.generate_expression(right);
-            let op_code = match op {
-                BinaryOperator::Add => "+",
-                BinaryOperator::Subtract => "-",
-                BinaryOperator::Multiply => "*",
-                BinaryOperator::Divide => "/",
-                BinaryOperator::LessThan => "<",
-                BinaryOperator::GreaterThan => ">",
-            };
-            format!("({} {} {})", left_code, op_code, right_code)
-        }
-        Expression::Assignment { name, value } => {
-            format!("{} = {}", name, self.generate_expression(value))
+        match expr {
+            Expression::StringLiteral(s) => {
+                let s = s.trim_matches('"');
+                let escaped = s.replace('"', "\\\"");
+                format!("String::from(\"{}\")", escaped)
+            }
+
+            Expression::NumberLiteral(n) => n.to_string(),
+            Expression::Identifier(name) => name.clone(),
+            // 👇 Adicione isso:
+            Expression::BinaryOp { left, op, right } => {
+                let left_is_string = matches!(**left, Expression::StringLiteral(_));
+                let right_is_identifier_or_number = matches!(
+                    **right,
+                    Expression::Identifier(_) | Expression::NumberLiteral(_)
+                );
+
+                if *op == BinaryOperator::Add && left_is_string && right_is_identifier_or_number {
+                    // Detectamos concatenação com string à esquerda: usar format!
+                    let left_str = if let Expression::StringLiteral(s) = &**left {
+                        s.trim_matches('"').to_string()
+                    } else {
+                        "".to_string()
+                    };
+
+                    let right_str = self.generate_expression(right);
+                    return format!(
+                        "format!(\"{}{{}}\", {})",
+                        left_str.replace('"', "\\\""),
+                        right_str
+                    );
+                }
+
+                // caso padrão
+                let left_code = self.generate_expression(left);
+                let right_code = self.generate_expression(right);
+                let op_code = match op {
+                    BinaryOperator::Add => "+",
+                    BinaryOperator::Subtract => "-",
+                    BinaryOperator::Multiply => "*",
+                    BinaryOperator::Divide => "/",
+                    BinaryOperator::LessThan => "<",
+                    BinaryOperator::GreaterThan => ">",
+                };
+                format!("{} {} {}", left_code, op_code, right_code)
+            }
+            Expression::Assignment { name, value } => {
+                format!("{} = {}", name, self.generate_expression(value))
+            }
         }
     }
-}
-
 }
