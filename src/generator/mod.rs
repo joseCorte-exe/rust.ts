@@ -46,21 +46,53 @@ edition = "2021"
 
     fn generate_statement(&self, stmt: &Statement) -> String {
         match stmt {
-            Statement::ConsoleLog(expr) => {
+                    Statement::ConsoleLog(exprs) => {
+            if exprs.len() == 1 {
                 format!(
                     "    println!(\"{{:?}}\", {});\n",
-                    self.generate_expression(expr)
+                    self.generate_expression(&exprs[0])
+                )
+            } else {
+                // Monta a string format e lista de argumentos
+                let mut format_string = String::new();
+                let mut expr_list = Vec::new();
+
+                for expr in exprs {
+                    match expr {
+                        Expression::StringLiteral(s) => {
+                            format_string.push_str(&s.trim_matches('"'));
+                        }
+                        _ => {
+                            format_string.push_str("{:?} ");
+                            expr_list.push(self.generate_expression(expr));
+                        }
+                    }
+                }
+
+                format_string = format_string.trim_end().to_string();
+
+                format!(
+                    "    println!(\"{}\", {});\n",
+                    format_string,
+                    expr_list.join(", ")
                 )
             }
+        }
             Statement::VariableDeclaration {
                 name,
                 type_annotation,
                 value,
             } => {
                 let type_str = match type_annotation {
+                    Type::String => "String".to_string(),
+                    Type::Number => "i32".to_string(),
+                    Type::Boolean => "bool".to_string(),
+                    Type::Array(inner) => format!("Vec<{}>", match **inner {
                     Type::String => "String",
                     Type::Number => "i32",
                     Type::Boolean => "bool",
+        _ => "Unknown", // só para segurança
+    }),
                 };
 
                 let value_str = if let Some(expr) = value {
@@ -161,6 +193,14 @@ edition = "2021"
             }
             Expression::Assignment { name, value } => {
                 format!("{} = {}", name, self.generate_expression(value))
+            }
+            Expression::ArrayLiteral(elements) => {
+                let inner = elements
+                    .iter()
+                    .map(|e| self.generate_expression(e))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("vec![{}]", inner)
             }
         }
     }

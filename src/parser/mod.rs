@@ -66,16 +66,29 @@ impl Parser {
         Some(expr)
     }
 
-
-
     fn parse_console_log(&mut self) -> Option<Statement> {
         self.advance(); // Consume 'console.log'
         self.expect(Token::OpenParen)?;
-        let expr = self.parse_expression()?;
-        self.expect(Token::CloseParen)?;
-        self.expect(Token::Semicolon)?;
-        Some(Statement::ConsoleLog(expr))
+
+        let mut args = Vec::new();
+
+        while self.peek() != Token::CloseParen {
+            let expr = self.parse_expression()?;
+            args.push(expr);
+
+        if self.peek() == Token::Comma {
+            self.advance();
+        } else {
+            break;
+        }
     }
+
+    self.expect(Token::CloseParen)?;
+    self.expect(Token::Semicolon)?;
+
+    Some(Statement::ConsoleLog(args))
+}
+
 
     fn parse_variable_declaration(&mut self) -> Option<Statement> {
         let _is_const = matches!(self.advance(), Token::Const); // ou Let
@@ -201,13 +214,29 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Option<Expression> {
-        match self.advance() {
-            Token::StringLiteral(s) => Some(Expression::StringLiteral(s)),
-            Token::Number(n) => Some(Expression::NumberLiteral(n)),
-            Token::Identifier(name) => Some(Expression::Identifier(name)),
-            _ => None,
+    match self.advance() {
+        Token::StringLiteral(s) => Some(Expression::StringLiteral(s)),
+        Token::Number(n) => Some(Expression::NumberLiteral(n)),
+        Token::Identifier(name) => Some(Expression::Identifier(name)),
+        Token::OpenBracket => {
+            let mut elements = Vec::new();
+            while !self.check(Token::CloseBracket) && !self.is_at_end() {
+                if let Some(expr) = self.parse_expression() {
+                    elements.push(expr);
+                    if !self.match_token(Token::Comma) {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            self.expect(Token::CloseBracket)?;
+            Some(Expression::ArrayLiteral(elements))
         }
+        _ => None,
     }
+}
+
 
     fn parse_binary_operator(&mut self) -> Option<BinaryOperator> {
         match self.peek() {
@@ -240,16 +269,27 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Option<Type> {
-        match self.advance() {
-            Token::Identifier(name) => match name.as_str() {
-                "string" => Some(Type::String),
-                "number" => Some(Type::Number),
-                "boolean" => Some(Type::Boolean),
-                _ => None,
-            },
-            _ => None,
+    match self.advance() {
+        Token::Identifier(name) => {
+            let base_type = match name.as_str() {
+                "string" => Type::String,
+                "number" => Type::Number,
+                "boolean" => Type::Boolean,
+                _ => return None,
+            };
+
+            if self.check(Token::OpenBracket) {
+                self.advance();
+                self.expect(Token::CloseBracket)?;
+                Some(Type::Array(Box::new(base_type)))
+            } else {
+                Some(base_type)
+            }
         }
+        _ => None,
     }
+}
+
 
     fn advance(&mut self) -> Token {
         if !self.is_at_end() {

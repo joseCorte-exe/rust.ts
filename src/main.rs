@@ -24,6 +24,9 @@ fn main() -> Result<(), std::io::Error> {
             console.log("Contador é " + contador);
             contador = contador + 1;
         }
+
+        const nomes: string[] = ["Jose", "Juan", "Guilherme", "Vinicius"];
+        console.log("Array de nomes:", nomes);
     "#;
 
     let lexer = Lexer::new(source);

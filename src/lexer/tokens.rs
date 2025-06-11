@@ -41,6 +41,12 @@ pub enum Token {
     #[token("}")]
     CloseBrace,
 
+    #[token("[")]
+    OpenBracket,
+
+    #[token("]")]
+    CloseBracket,
+
     #[token("<")]
     LessThan,
 
@@ -58,6 +64,9 @@ pub enum Token {
 
     #[token("/")]
     Slash,
+
+    #[token(",")]
+    Comma,
 
     #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#, |lex| lex.slice().to_string())]
     StringLiteral(String),

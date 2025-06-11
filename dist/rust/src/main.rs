@@ -12,4 +12,6 @@ fn main() {
     println!("{:?}", format!("Contador é {}", contador));
     contador = contador + 1;
     }
+    let nomes: Vec<String> = vec![String::from("Jose"),String::from("Juan"),String::from("Guilherme"),String::from("Vinicius")];
+    println!("Array de nomes:{:?}", nomes);
 }

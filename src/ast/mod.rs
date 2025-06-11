@@ -3,11 +3,12 @@ pub enum Type {
     String,
     Number,
     Boolean,
+    Array(Box<Type>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    ConsoleLog(Expression),
+    ConsoleLog(Vec<Expression>),
     VariableDeclaration {
         name: String,
         type_annotation: Type,
@@ -42,6 +43,7 @@ pub enum Expression {
         name: String,
         value: Box<Expression>,
     },
+    ArrayLiteral(Vec<Expression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
