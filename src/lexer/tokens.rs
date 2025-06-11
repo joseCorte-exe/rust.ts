@@ -68,7 +68,7 @@ pub enum Token {
     #[token(",")]
     Comma,
 
-    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#, |lex| lex.slice().to_string())]
+    #[regex(r#""([^"\\]|\\.)*""#, |lex| lex.slice().to_string())]
     StringLiteral(String),
 
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]

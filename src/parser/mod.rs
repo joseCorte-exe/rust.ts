@@ -47,7 +47,7 @@ impl Parser {
 
 
     fn parse_assignment_expression(&mut self) -> Option<Expression> {
-        let expr = self.parse_binary_expression()?;
+        let expr = self.parse_binary_expression(0)?; // agora com precedência
 
         if self.lookahead_is(Token::Equal) {
             if let Expression::Identifier(name) = expr {
@@ -198,11 +198,23 @@ impl Parser {
     }
 
 
-    fn parse_binary_expression(&mut self) -> Option<Expression> {
-        let mut left = self.parse_primary()?;
+    fn parse_binary_expression(&mut self, min_prec: u8) -> Option<Expression> {
+    let mut left = self.parse_primary()?;
 
-        while let Some(op) = self.parse_binary_operator() {
-            let right = self.parse_primary()?;
+    loop {
+            let (prec, op) = match self.peek_operator_with_precedence() {
+                Some(p) => p,
+                None => break,
+            };
+
+            if prec < min_prec {
+                break;
+            }
+
+            self.advance(); // consume operador
+
+            // Tentar com a mesma precedência para associatividade à esquerda
+            let right = self.parse_binary_expression(prec + 1)?;
             left = Expression::BinaryOp {
                 left: Box::new(left),
                 op,
@@ -211,6 +223,18 @@ impl Parser {
         }
 
         Some(left)
+    }
+
+    fn peek_operator_with_precedence(&self) -> Option<(u8, BinaryOperator)> {
+        match self.peek() {
+            Token::Plus => Some((1, BinaryOperator::Add)),
+            Token::Minus => Some((1, BinaryOperator::Subtract)),
+            Token::Star => Some((2, BinaryOperator::Multiply)),
+            Token::Slash => Some((2, BinaryOperator::Divide)),
+            Token::LessThan => Some((0, BinaryOperator::LessThan)),
+            Token::GreaterThan => Some((0, BinaryOperator::GreaterThan)),
+            _ => None,
+        }
     }
 
     fn parse_primary(&mut self) -> Option<Expression> {
@@ -232,6 +256,11 @@ impl Parser {
             }
             self.expect(Token::CloseBracket)?;
             Some(Expression::ArrayLiteral(elements))
+        }
+        Token::OpenParen => {
+            let expr = self.parse_expression()?;       
+            self.expect(Token::CloseParen)?;           
+            Some(expr)                                 
         }
         _ => None,
     }
@@ -349,6 +378,5 @@ impl Parser {
         std::mem::discriminant(&self.tokens[self.current + 1].0)
             == std::mem::discriminant(&expected)
     }
-
 
 }

@@ -188,7 +188,7 @@ edition = "2021"
                     BinaryOperator::LessThan => "<",
                     BinaryOperator::GreaterThan => ">",
                 };
-                format!("{} {} {}", left_code, op_code, right_code)
+                format!("({} {} {})", left_code, op_code, right_code)
             }
             Expression::Assignment { name, value } => {
                 format!("{} = {}", name, self.generate_expression(value))
