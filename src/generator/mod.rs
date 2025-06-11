@@ -148,8 +148,7 @@ edition = "2021"
         match expr {
             Expression::StringLiteral(s) => {
                 let s = s.trim_matches('"');
-                let escaped = s.replace('"', "\\\"");
-                format!("String::from(\"{}\")", escaped)
+                format!("String::from({:?})", s)
             }
 
             Expression::NumberLiteral(n) => n.to_string(),
