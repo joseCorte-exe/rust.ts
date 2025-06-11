@@ -110,6 +110,15 @@ if (true) {
 } else {
     console.log("Não é verdadeiro");
 }
+
+let contador: number = 0;
+while (contador < 5) {
+    console.log("Contador é " + contador);
+    contador = contador + 1;
+}
+
+const nomes: string[] = ["Jose", "Juan", "Guilherme", "Vinicius"];
+console.log("Array de nomes:", nomes);
 ```
 
 O compilador gera o seguinte código Rust:
@@ -117,30 +126,41 @@ O compilador gera o seguinte código Rust:
 fn main() {
     let nome: String = String::from("João");
     println!("{:?}", nome);
-    
     if true {
         let idade: i32 = 25;
         println!("{:?}", idade);
     } else {
         println!("{:?}", String::from("Não é verdadeiro"));
     }
+    let mut contador: i32 = 0;
+    while contador < 5 {
+        println!("{:?}", format!("Contador é {}", contador));
+        contador = contador + 1;
+    }
+    let nomes: Vec<String> = vec![
+        String::from("Jose"),
+        String::from("Juan"),
+        String::from("Guilherme"),
+        String::from("Vinicius"),
+    ];
+    println!("Array de nomes:{:?}", nomes);
 }
 ```
 
 ## Limitações Atuais
 
-- Suporta apenas tipos básicos (string, number, boolean)
+- Suporta apenas tipos básicos (string, number, boolean e arrays)
 - Não suporta operações aritméticas
 - Não suporta funções
-- Não suporta loops
-- Não suporta arrays ou objetos
+- Não suporta o loop "for"
+- Não suporta objetos
 
 ## Próximos Passos
 
 - [ ] Adicionar suporte a operações aritméticas
 - [ ] Implementar suporte a funções
-- [ ] Adicionar suporte a loops (for, while)
-- [ ] Implementar suporte a arrays e objetos
+- [ ] Adicionar suporte a loops (for)
+- [ ] Implementar suporte a objetos
 - [ ] Adicionar verificação de tipos em tempo de compilação
 - [ ] Melhorar o tratamento de erros
 
